@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MMA × Hcy Interpreter · Nordic Toolbox</title>
+<meta name="description" content="Practitioner tool: interpret methylmalonic acid (MMA) and homocysteine (Hcy) patterns, with likely causes, diagnostic priorities and micronutrient options.">
+<meta name="theme-color" content="#007ea2">
+<link rel="icon" href="../assets/nordic-logo.png" type="image/png">
+</head>
+<body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Open+Sans:wght@400;600;700&display=swap">
+<style>
+/* Nordic Laboratories house style: Montserrat headings, Open Sans body; Nordic blue, orange, black, white.
+   Layout: white logo bar, blue title band, two-step input (MMA, Hcy) above a full-width result card. */
+:root{
+  --blue:#007ea2; --blue-dk:#00627e; --blue-t:#e5f2f6; --orange:#f89c53; --orange-t:#fef0e4; --orange-dk:#a55410;
+  --bg:#f4f7f8; --surface:#ffffff; --fg:#0d0d0d; --muted:#5a6266; --line:#d9e2e6; --chip:#eef1f2;
+  --f-head:"Montserrat","Helvetica Neue",Arial,sans-serif; --f-body:"Open Sans","Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --blue:#3fb0d0; --blue-dk:#7cc9df; --blue-t:#10303a; --orange:#f8a868; --orange-t:#3a2614; --orange-dk:#f8c08f;
+  --bg:#0f1416; --surface:#182024; --fg:#f2f4f5; --muted:#a3adb2; --line:#2b373c; --chip:#222b2f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --blue:#3fb0d0; --blue-dk:#7cc9df; --blue-t:#10303a; --orange:#f8a868; --orange-t:#3a2614; --orange-dk:#f8c08f;
+  --bg:#0f1416; --surface:#182024; --fg:#f2f4f5; --muted:#a3adb2; --line:#2b373c; --chip:#222b2f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;margin:0}
+.in{max-width:900px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.logobar{background:var(--surface);border-bottom:1px solid var(--line)}
+.logobar .in{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--fg)}
+.logo img{width:52px;height:52px}
+.logo span{font-family:var(--f-head);font-weight:600;font-size:15px;letter-spacing:.02em}
+.label{font-family:var(--f-head);font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--blue)}
+.band{background:#007ea2;color:#fff}
+.band .in{padding-block:28px 30px;display:grid;gap:8px}
+.band .eyebrow{font-family:var(--f-head);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#fbd2b0}
+.band h1{font-family:var(--f-head);font-weight:700;font-size:clamp(24px,4vw,34px);line-height:1.2;margin:0;text-wrap:balance}
+.band p{margin:0;max-width:64ch;color:#e3f1f6}
+main.in{padding-block:24px 40px;display:grid;gap:20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:16px;min-width:0}
+h2{font-family:var(--f-head);font-size:17px;font-weight:600;margin:0}
+.pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media (max-width:620px){.pick{grid-template-columns:minmax(0,1fr)}}
+.q{display:grid;gap:8px}
+.q .lbl{font-family:var(--f-head);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--line);border-radius:999px;padding:4px;gap:4px;background:var(--chip)}
+.seg button{font:inherit;font-weight:600;font-size:14px;border:0;border-radius:999px;padding:9px 6px;background:transparent;color:var(--fg);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--blue);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.card{border-radius:10px;border:1px solid var(--line);background:var(--surface);overflow:hidden}
+.card .top{padding:18px 20px;display:grid;gap:8px;border-bottom:1px solid var(--line)}
+.card.urgent .top{background:var(--orange-t);border-left:6px solid var(--orange)}
+.card.check .top{background:var(--orange-t);border-left:6px solid var(--orange)}
+.card.focus .top{background:var(--blue-t);border-left:6px solid var(--blue)}
+.card.ok .top{background:var(--chip);border-left:6px solid var(--muted)}
+.badge{justify-self:start;font-family:var(--f-head);font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:999px}
+.urgent .badge{background:var(--orange);color:#1a0d02}
+.check .badge{background:transparent;border:1.5px solid var(--orange);color:var(--orange-dk)}
+.focus .badge{background:var(--blue);color:#fff}
+.ok .badge{background:var(--fg);color:var(--surface)}
+.card h3{font-family:var(--f-head);font-size:clamp(18px,2.6vw,22px);font-weight:700;margin:0;text-wrap:balance}
+.card .body{padding:18px 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 26px}
+@media (max-width:700px){.card .body{grid-template-columns:minmax(0,1fr)}}
+.sec{display:grid;gap:4px;min-width:0}
+.sec.full{grid-column:1/-1}
+.sec .k{font-family:var(--f-head);font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue)}
+.sec p{margin:0;font-size:14.5px}
+ul.mn{list-style:none;margin:0;padding:0;display:grid}
+ul.mn li{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+ul.mn li:last-child{border-bottom:0}
+ul.mn li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:7px;flex-shrink:0}
+.ok ul.mn li::before,.check ul.mn li::before{background:var(--muted)}
+.urgent ul.mn li::before{background:var(--orange)}
+.note{border-radius:8px;padding:10px 14px;font-size:14px}
+.note.warn{background:var(--orange-t);border:1px solid var(--orange)}
+.note.diff{background:var(--chip);border:1px solid var(--line)}
+.empty{padding:28px 20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}
+.matrix{overflow-x:auto}
+.matrix table{border-collapse:separate;border-spacing:4px;width:100%;min-width:420px;font-size:13px}
+.matrix th{font-family:var(--f-head);font-weight:600;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px;text-align:center}
+.matrix th.row{text-align:left}
+.matrix td{padding:0}
+.matrix td button{width:100%;font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:6px;padding:8px 6px;cursor:pointer;background:var(--surface);color:var(--fg);line-height:1.3}
+.matrix td button.urgent,.matrix td button.check{border-color:var(--orange)}
+.matrix td button.focus{border-color:var(--blue)}
+.matrix td button[aria-current="true"]{background:var(--blue);color:#fff;border-color:var(--blue)}
+.disclaimer{font-size:13px;color:var(--muted);background:var(--chip);border-radius:8px;padding:12px 14px}
+footer{border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+</style>
+
+<header class="logobar"><div class="in">
+  <span class="logo"><img src="../assets/nordic-logo.png" alt="Nordic Laboratories" width="52" height="52"><span>Nordic Toolbox</span></span>
+  <span class="label">Practitioner Tools</span>
+</div></header>
+
+<section class="band"><div class="in">
+  <div class="eyebrow">Practitioner tool · Methylation</div>
+  <h1>MMA × Homocysteine Interpreter</h1>
+  <p>Select the lab pattern for methylmalonic acid (MMA) and homocysteine (Hcy). The tool shows the likely cause, the pathophysiology, diagnostic priorities and first-line micronutrients.</p>
+</div></section>
+
+<main class="in">
+  <section class="panel">
+    <h2>Lab pattern</h2>
+    <div class="pick">
+      <div class="q"><span class="lbl" id="l-mma">MMA (methylmalonic acid)</span>
+        <div class="seg" role="group" aria-labelledby="l-mma" data-k="mma">
+          <button type="button" data-v="high">Elevated ↑</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="low">Low ↓</button>
+        </div></div>
+      <div class="q"><span class="lbl" id="l-hcy">Hcy (homocysteine)</span>
+        <div class="seg" role="group" aria-labelledby="l-hcy" data-k="hcy">
+          <button type="button" data-v="high">Elevated ↑</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="low">Low ↓</button>
+        </div></div>
+    </div>
+  </section>
+
+  <div id="output" aria-live="polite"></div>
+
+  <section class="panel">
+    <h2>All nine patterns at a glance</h2>
+    <div class="matrix"><table id="matrix"></table></div>
+  </section>
+
+  <div class="disclaimer"><strong>Clinical note:</strong> This tool is an orientation aid for trained healthcare professionals. Always interpret lab values in the full clinical context. Not a recommendation for self-medication.</div>
+
+  <footer><span>Nordic Toolbox · Educational tool for healthcare professionals</span><span>Version 1.0</span></footer>
+</main>
+
+<script>
+const DB={
+ "high|high":{type:"urgent",badge:"Urgent",short:"Functional B12 deficiency",
+  title:"Functional B12 deficiency (primary)",
+  cause:"Functional B12 deficiency as the primary cause · MUT enzyme defect (rare) · MTHFR/MTR variants may add to it",
+  patho:"Adenosyl-B12 ↓ → MUT blocked → methylmalonyl-CoA accumulates. At the same time remethylation is insufficient because B12 is lacking on both pathways.",
+  prio:"Clarify B12 status: holotranscobalamin (holoTC) and serum B12 are mandatory before supplementation. Then targeted replacement.",
+  mn:["Methylcobalamin 1000 µg/day sublingual (first choice)","Hydroxocobalamin 1000 µg/day as an alternative","5-MTHF 400–800 µg/day (support remethylation)","Riboflavin/B2 10–20 mg/day (MTHFR stabiliser)"],
+  warn:"Measure holoTC and serum B12 before supplementing. With MMA↑ and Hcy↑, always rule out B12 deficiency before focusing on SNPs.",diff:null},
+ "normal|high":{type:"focus",badge:"SNP focus",short:"Remethylation disorder",
+  title:"Remethylation disorder (enzyme SNPs)",
+  cause:"MTHFR C677T / A1298C · MTR A2756G · MTRR A66G · BHMT R239Q · CBS SNP (may be additive)",
+  patho:"B12 status is functionally adequate (MUT intact, normal MMA). The bottleneck lies in the remethylation pathway due to enzyme SNPs. Transsulfuration may be compensating.",
+  prio:"Targeted support of remethylation. Repeat labs after 6–8 weeks. Consider an SNP panel.",
+  mn:["5-MTHF 800–1000 µg/day (active folate, bypasses the MTHFR bottleneck)","Methylcobalamin 500–1000 µg/day sublingual","Riboflavin/B2 20–30 mg/day (stabilises MTHFR C677T)","Betaine/TMG 1–3 g/day (BHMT bypass: B12/folate-independent remethylation)","P5P 25–50 mg/day additionally if a CBS SNP is suspected"],
+  warn:null,diff:null},
+ "low|high":{type:"focus",badge:"SNP focus",short:"Remethylation disorder, MUT efficient",
+  title:"Remethylation disorder with efficient MUT",
+  cause:"MTHFR/MTR/MTRR SNPs · BHMT deficiency · CBS SNP possible · high propionate load unlikely",
+  patho:"MUT activity is efficient (sufficient adenosyl-B12). The bottleneck lies solely in the remethylation pathway. Methyl group consumption may be increased.",
+  prio:"Optimise the methylation pathway. Check propionate sources (diet, microbiome). SNP analysis is useful.",
+  mn:["5-MTHF 800–1000 µg/day","Methylcobalamin 1000 µg/day sublingual","Riboflavin/B2 20–30 mg/day","Betaine/TMG 1–2 g/day","P5P 25 mg/day if a CBS SNP is suspected"],
+  warn:null,diff:null},
+ "high|low":{type:"check",badge:"Check confounders",short:"MMA↑ without Hcy↑",
+  title:"MMA↑ without elevated Hcy: B12 is not the primary factor",
+  cause:"Renal insufficiency (eGFR ↓) · high propionate load / odd-chain fatty acids · MUT gene mutation (rare)",
+  patho:"Hcy is remethylated normally or sufficiently transsulfurated. In this pattern the MMA elevation is NOT a B12 signal, so confounders must be ruled out.",
+  prio:"Kidney function: eGFR and creatinine. Dietary history: ruminant fat (butter, cheese, lamb). Evaluate microbiome status.",
+  mn:["No primary indication for B12 or folate","Omega-3 with high intake of odd-chain fatty acids","Probiotics/prebiotics if the microbiome is the suspected source","Kidney-specific management if eGFR ↓"],
+  warn:"Do not supplement B12 before the cause is clarified. Here, MMA↑ is not a vitamin deficiency signal.",
+  diff:"(1) Kidney function (eGFR, creatinine), (2) diet (animal fats, BCAA-rich), (3) gut microbiome (propionate producers)."},
+ "normal|low":{type:"ok",badge:"No action needed",short:"Normal finding",
+  title:"Normal finding: adequate methylation capacity",
+  cause:"No relevant pathology · sufficient B12 and methylation capacity",
+  patho:"Both markers within the target range. Metabolism adequate. Hcy can still be optimised through diet and lifestyle if needed.",
+  prio:"No specific supplementation indicated. Preventive: balanced B-vitamin intake from food.",
+  mn:["B complex in physiological doses (maintenance)","Adequate folate from food (leafy greens, legumes)","No high-dose single-nutrient supplementation indicated"],
+  warn:null,diff:null},
+ "low|low":{type:"ok",badge:"Optimal finding",short:"Optimal status",
+  title:"Optimal methylation status",
+  cause:"No relevant pathology · optimal methylation status",
+  patho:"Efficient MUT reaction. Hcy remethylation and/or transsulfuration adequate. A very favourable pattern.",
+  prio:"No action needed. Maintain through a balanced diet.",
+  mn:["No intervention needed","B vitamins from food are sufficient"],
+  warn:null,diff:null},
+ "high|normal":{type:"check",badge:"Check confounders",short:"MMA↑, Hcy normal",
+  title:"MMA↑ with normal Hcy: confounders first",
+  cause:"Renal insufficiency (most common cause) · high propionate load / odd-chain fatty acids · MUT polymorphism",
+  patho:"Hcy is metabolised adequately. The MMA elevation is not a B12 signal, so confounders must be ruled out before any intervention.",
+  prio:"Check kidney function and diet. Intervene in a targeted way only after confounders are excluded.",
+  mn:["No primary indication for B12 supplementation","Kidney support if eGFR ↓","Dietary adjustment (reduce animal fats, BCAA)"],
+  warn:"No B12 without clarifying the cause. MMA↑ with normal Hcy is typical of renal retention, not of vitamin deficiency.",
+  diff:"eGFR, creatinine, dietary record (ruminant fat), gut microbiome status."},
+ "normal|normal":{type:"ok",badge:"Normal finding",short:"Unremarkable",
+  title:"Unremarkable finding",
+  cause:"Normal finding · no functional deficiency",
+  patho:"Both pathways functionally intact. No sign of a relevant enzyme disorder or vitamin deficiency.",
+  prio:"No intervention indicated.",
+  mn:["A balanced diet is sufficient","No targeted supplementation"],
+  warn:null,diff:null},
+ "low|normal":{type:"ok",badge:"Normal finding",short:"Favourable MUT activity",
+  title:"Favourable MUT activity, Hcy adequate",
+  cause:"Normal finding with favourable MUT activity · low-normal propionate load",
+  patho:"Unremarkable pattern. Low MMA reflects an efficient adenosyl-B12-dependent reaction.",
+  prio:"No intervention.",
+  mn:["No specific supplementation","Maintain with a balanced diet"],
+  warn:null,diff:null}
+};
+const LBL={high:"Elevated ↑",normal:"Normal",low:"Low ↓"};
+const state={mma:"",hcy:""};
+
+function render(){
+  document.querySelectorAll('.seg').forEach(s=>s.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(state[s.dataset.k]===b.dataset.v))));
+  document.querySelectorAll('#matrix td button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.key===state.mma+'|'+state.hcy)));
+  const out=document.getElementById('output');
+  if(!state.mma||!state.hcy){out.innerHTML='<div class="empty">Select MMA and Hcy above, or click a pattern in the overview below.</div>';return}
+  const d=DB[state.mma+'|'+state.hcy];
+  out.innerHTML=`<article class="card ${d.type}">
+    <div class="top"><span class="badge">${d.badge}</span><h3>${d.title}</h3>
+      <span style="font-size:13.5px;color:var(--muted)">MMA ${LBL[state.mma]} · Hcy ${LBL[state.hcy]}</span></div>
+    <div class="body">
+      <div class="sec"><span class="k">Likely cause / SNPs</span><p>${d.cause}</p></div>
+      <div class="sec"><span class="k">Pathophysiology</span><p>${d.patho}</p></div>
+      <div class="sec"><span class="k">Diagnostic priority</span><p>${d.prio}</p></div>
+      <div class="sec"><span class="k">Micronutrients (first choice)</span><ul class="mn">${d.mn.map(m=>`<li>${m}</li>`).join('')}</ul></div>
+      ${d.warn?`<div class="sec full"><div class="note warn"><strong>Note:</strong> ${d.warn}</div></div>`:''}
+      ${d.diff?`<div class="sec full"><div class="note diff"><strong>Differential diagnosis:</strong> ${d.diff}</div></div>`:''}
+    </div></article>`;
+}
+
+// overview matrix
+(function(){
+  const order=['high','normal','low'];
+  let h='<tr><th class="row">MMA ↓ / Hcy →</th>'+order.map(o=>`<th>Hcy ${LBL[o]}</th>`).join('')+'</tr>';
+  order.forEach(m=>{h+=`<tr><th class="row">MMA ${LBL[m]}</th>`+order.map(c=>{const k=m+'|'+c,d=DB[k];return `<td><button type="button" class="${d.type}" data-key="${k}">${d.short}</button></td>`}).join('')+'</tr>'});
+  document.getElementById('matrix').innerHTML=h;
+})();
+
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{state[b.parentElement.dataset.k]=b.dataset.v;render()}));
+document.querySelectorAll('#matrix td button').forEach(b=>b.addEventListener('click',()=>{[state.mma,state.hcy]=b.dataset.key.split('|');render();document.getElementById('output').scrollIntoView({behavior:'smooth',block:'start'})}));
+state.mma='high';state.hcy='high';
+render();
+</script>
+</body>
+</html>
